@@ -4,3 +4,4 @@ beautifulsoup4
 textstat
 spacy
 nltk
+rapidfuzz
