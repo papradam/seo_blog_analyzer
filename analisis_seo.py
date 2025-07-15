@@ -12,12 +12,7 @@ nltk.download('stopwords')
 stop_words = set(stopwords.words('spanish'))
 
 # Cargar modelo mediano de spaCy para español
-try:
-    nlp = spacy.load("es_core_news_sm")
-except OSError:
-    from spacy.cli import download
-    download("es_core_news_sm")
-    nlp = spacy.load("es_core_news_sm")
+nlp = spacy.load("es_core_news_sm")
 
 # ------------------------
 # Funciones auxiliares
