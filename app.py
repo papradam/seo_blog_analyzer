@@ -153,8 +153,6 @@ if st.session_state.modo_contenido:
             st.markdown("### 🔍 Palabras clave")
             for frase, count in res['palabras_clave']:
                 st.write(f"- {frase} ({count})")
-            st.markdown("### 🏷️ Entidades encontradas")
-            for ent, lbl in res['entidades']:
-                st.write(f"- {ent} ({lbl})")
+            
     else:
         st.success("✅ No hay contenido variable que analizar.")
