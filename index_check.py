@@ -1,8 +1,7 @@
-# index_check.py
-
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse, urlunparse
+import re
 
 def limpiar_url(url):
     try:
@@ -44,3 +43,31 @@ def analizar_indexabilidad(url):
 
     except:
         return 0, [], '', False
+
+def clasificar_tipo_pagina(url):
+    url_lower = url.lower()
+    url_path = urlparse(url_lower).path
+
+    # Categorías comunes (añadido /user y /usuario)
+    patrones_categoria = [
+        r"/(categoria|categorias)/",
+        r"/(category|categories)/",
+        r"/tag[s]?/",
+        r"/(user|usuario)/",
+    ]
+
+    patrones_paginador = [
+        r"/(pag|page)/",
+        r"[?&](pag|page)=\d+",
+    ]
+
+    for patron in patrones_categoria:
+        if re.search(patron, url_path):
+            return "categoria"
+
+    for patron in patrones_paginador:
+        if re.search(patron, url_path) or re.search(patron, url_lower):
+            return "paginador"
+
+    return "contenido"
+
