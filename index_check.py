@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urljoin, urlparse, urlunparse, parse_qs
 import re
 
 def limpiar_url(url):
@@ -46,28 +46,36 @@ def analizar_indexabilidad(url):
 
 def clasificar_tipo_pagina(url):
     url_lower = url.lower()
-    url_path = urlparse(url_lower).path
+    parsed = urlparse(url_lower)
+    url_path = parsed.path
+    query_params = parse_qs(parsed.query)
 
-    # Categorías comunes (añadido /user y /usuario)
-    patrones_categoria = [
-        r"/(categoria|categorias)/",
-        r"/(category|categories)/",
-        r"/tag[s]?/",
-        r"/(user|usuario)/",
+    # Palabras clave que indican categoría
+    palabras_categoria = [
+        "categoria", "categorias", "category", "categories",
+        "tag", "tags", "user", "usuario", "search", "buscar"
     ]
 
+    # Paginadores comunes
     patrones_paginador = [
         r"/(pag|page)/",
         r"[?&](pag|page)=\d+",
     ]
 
-    for patron in patrones_categoria:
-        if re.search(patron, url_path):
+    # Buscar en el PATH
+    for palabra in palabras_categoria:
+        if re.search(rf"{palabra}", url_path):
             return "categoria"
 
+    # Buscar en los nombres de los parámetros
+    for param in query_params.keys():
+        for palabra in palabras_categoria:
+            if palabra in param:
+                return "categoria"
+
+    # Buscar si es paginador
     for patron in patrones_paginador:
-        if re.search(patron, url_path) or re.search(patron, url_lower):
+        if re.search(patron, url_lower):
             return "paginador"
 
     return "contenido"
-

@@ -2,7 +2,8 @@ import streamlit as st
 import time
 import pandas as pd
 from index_check import limpiar_url, obtener_enlaces_internos, analizar_indexabilidad, clasificar_tipo_pagina
-from contenido_repetido import detectar_bloques_comunes, extraer_texto_limpio
+from contenido_repetido import extraer_bloques_variables
+from analisis_seo import analizar_texto
 
 st.set_page_config(page_title="Análisis de Indexabilidad", layout="wide")
 st.title("🔍 Análisis de Indexabilidad de URLs")
@@ -16,8 +17,10 @@ if 'modo_contenido' not in st.session_state:
     st.session_state.modo_contenido = False
 if 'url_listado' not in st.session_state:
     st.session_state.url_listado = []
-if 'bloques_repetidos' not in st.session_state:
-    st.session_state.bloques_repetidos = []
+if 'contenido_variable' not in st.session_state:
+    st.session_state.contenido_variable = {}
+if 'resultados_seo' not in st.session_state:
+    st.session_state.resultados_seo = {}
 
 # Botón de inicio
 if st.session_state.estado == 'inicio':
@@ -58,7 +61,7 @@ else:
                     st.session_state.modo_contenido = True
                     st.session_state.estado = 'pausado'
                     urls_validas = [u['url'] for u in indexables[:3]]
-                    st.session_state.bloques_repetidos = detectar_bloques_comunes(urls_validas, n_docs=2)
+                    st.session_state.contenido_variable = extraer_bloques_variables(urls_validas)
                     st.session_state.url_listado = [
                         u for u in st.session_state.url_listado
                         if not u.get('indexable') or u['url'] in urls_validas
@@ -121,15 +124,37 @@ if st.session_state.estado == 'activo':
 
 # Proceso de evaluación de contenido de valor
 if st.session_state.modo_contenido:
-    urls_restantes = [
-        u for u in st.session_state.url_listado
-        if u['estado'] == 'evaluado' and u.get('indexable') and u.get('tipo_pagina') == 'contenido'
-    ]
+    urls_restantes = list(st.session_state.contenido_variable.keys())
     if urls_restantes:
         siguiente = urls_restantes[0]
-        st.markdown(f"### 🧪 Evaluando contenido único: {siguiente['url']}")
-        texto = extraer_texto_limpio(siguiente['url'], st.session_state.bloques_repetidos)
-        st.code(texto[:3000] or "(contenido vacío)", language="markdown")
-    else:
-        st.success("✅ Proceso de contenido finalizado.")
+        bloques = st.session_state.contenido_variable[siguiente]
+        texto = "\n\n".join(bloques).strip()
 
+        if texto:
+            resultado = analizar_texto(texto)
+            st.session_state.resultados_seo[siguiente] = resultado
+        else:
+            st.warning("El contenido es vacío o fue filtrado totalmente.")
+
+    # Mostrar resultados acumulados
+    if st.session_state.resultados_seo:
+        st.sidebar.markdown("## 🔗 Selecciona una URL")
+        seleccion = st.sidebar.radio("URLs con análisis", list(st.session_state.resultados_seo.keys()))
+
+        if seleccion:
+            res = st.session_state.resultados_seo[seleccion]
+            st.sidebar.markdown(f"### 📌 Resumen")
+            st.sidebar.markdown(f"- **Legibilidad:** {res['indice_legibilidad']:.2f}")
+            st.sidebar.markdown(f"- **Nivel educativo:** {res['nivel_educativo']}")
+            st.sidebar.markdown(f"- **Palabras:** {res['num_palabras']}")
+            st.sidebar.markdown(f"- **Párrafos:** {res['num_parrafos']}")
+
+            st.markdown(f"## 📊 Detalle SEO para {seleccion}")
+            st.markdown("### 🔍 Palabras clave")
+            for frase, count in res['palabras_clave']:
+                st.write(f"- {frase} ({count})")
+            st.markdown("### 🏷️ Entidades encontradas")
+            for ent, lbl in res['entidades']:
+                st.write(f"- {ent} ({lbl})")
+    else:
+        st.success("✅ No hay contenido variable que analizar.")
