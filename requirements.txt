@@ -5,3 +5,5 @@ textstat
 spacy
 nltk
 rapidfuzz
+matplotlib
+wordcloud
