@@ -3,6 +3,57 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+from urllib.parse import urljoin
+
+def obtener_robots_y_canonicals(soup):
+    robots = ""
+    canonicals = []
+
+    robots_tag = soup.find("meta", attrs={"name": "robots"})
+    if robots_tag and robots_tag.get("content"):
+        robots = robots_tag["content"].strip()
+
+    for link in soup.find_all("link", rel="canonical"):
+        href = link.get("href")
+        if href:
+            canonicals.append(href.strip())
+
+    return robots, canonicals
+
+def obtener_imagenes_info(soup, base_url):
+    imagenes_info = []
+    for img in soup.find_all("img"):
+        src = img.get("src")
+        alt = img.get("alt", "").strip()
+        peso = 0
+
+        if src:
+            img_url = urljoin(base_url, src)
+            try:
+                r = requests.head(img_url, timeout=5)
+                peso = int(r.headers.get("Content-Length", 0))
+            except Exception:
+                peso = -1  # Error al obtener peso
+
+            imagenes_info.append({
+                "URL": img_url,
+                "ALT": alt,
+                "Peso (bytes)": peso
+            })
+    return imagenes_info
+
+def obtener_datos_estructurados(soup):
+    datos = []
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string)
+            if isinstance(data, list):
+                datos.extend(data)
+            else:
+                datos.append(data)
+        except Exception:
+            continue
+    return datos
 
 def analizar_tecnico(url):
     try:
@@ -11,78 +62,43 @@ def analizar_tecnico(url):
         html = res.text
         soup = BeautifulSoup(html, 'html.parser')
 
-        # Código de estado, robots y canonical (meta evaluados antes)
         codigo_estado = res.status_code
-        robots = ""
-        canonicals = []
+        robots, canonicals = obtener_robots_y_canonicals(soup)
 
-        robots_tag = soup.find("meta", attrs={"name": "robots"})
-        if robots_tag and robots_tag.get("content"):
-            robots = robots_tag['content'].strip()
+        # Título principal desde <title>
+        title_tag = soup.find("title")
+        title = title_tag.get_text(strip=True) if title_tag else ""
 
-        for link in soup.find_all("link", rel="canonical"):
-            href = link.get("href")
-            if href:
-                canonicals.append(href.strip())
-
-        # Títulos
-        titles = [tag.get_text(strip=True) for tag in soup.find_all("title") if tag.get_text(strip=True)]
-
-        # Meta Descriptions
+        # Meta Description
         meta_descriptions = [
-            tag['content'].strip()
+            tag.get("content", "").strip()
             for tag in soup.find_all("meta", attrs={"name": "description"})
             if tag.get("content")
         ]
 
         # Meta Keywords
         meta_keywords = [
-            tag['content'].strip()
+            tag.get("content", "").strip()
             for tag in soup.find_all("meta", attrs={"name": "keywords"})
             if tag.get("content")
         ]
 
-        # H1
-        h1s = [h.get_text(strip=True) for h in soup.find_all("h1") if h.get_text(strip=True)]
+        # H1s
+        h1s = [
+            h.get_text(strip=True)
+            for h in soup.find_all("h1")
+            if h.get_text(strip=True)
+        ]
 
-        # Imágenes
-        imagenes_info = []
-        for img in soup.find_all("img"):
-            src = img.get("src")
-            alt = img.get("alt", "").strip() if img.has_attr("alt") else ""
-            peso = 0
-
-            if src:
-                img_url = requests.compat.urljoin(url, src)
-                try:
-                    r = requests.head(img_url, timeout=5)
-                    peso = int(r.headers.get("Content-Length", 0))
-                except:
-                    pass
-
-                imagenes_info.append({
-                    "URL": img_url,
-                    "ALT": alt,
-                    "Peso (bytes)": peso
-                })
-
-        # Datos estructurados
-        datos_estructurados = []
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string)
-                if isinstance(data, list):
-                    datos_estructurados.extend(data)
-                else:
-                    datos_estructurados.append(data)
-            except:
-                continue
+        # Imágenes y datos estructurados
+        imagenes_info = obtener_imagenes_info(soup, url)
+        datos_estructurados = obtener_datos_estructurados(soup)
 
         return {
             "codigo": codigo_estado,
             "robots": robots,
             "canonicals": canonicals,
-            "titles": titles,
+            "titles": [title] if title else [],
             "meta_descriptions": meta_descriptions,
             "meta_keywords": meta_keywords,
             "h1s": h1s,
@@ -90,5 +106,7 @@ def analizar_tecnico(url):
             "datos_estructurados": datos_estructurados
         }
 
+    except requests.RequestException as e:
+        return {"error": f"Error de conexión: {str(e)}"}
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Error general: {str(e)}"}
