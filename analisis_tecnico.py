@@ -11,57 +11,82 @@ def analizar_tecnico(url):
         html = res.text
         soup = BeautifulSoup(html, 'html.parser')
 
-        title = soup.title.string.strip() if soup.title and soup.title.string else ""
+        # Código de estado, robots y canonical (meta evaluados antes)
+        codigo_estado = res.status_code
+        robots = ""
+        canonicals = []
 
-        meta_description = ""
-        desc_tag = soup.find("meta", attrs={"name": "description"})
-        if desc_tag and desc_tag.get("content"):
-            meta_description = desc_tag['content'].strip()
+        robots_tag = soup.find("meta", attrs={"name": "robots"})
+        if robots_tag and robots_tag.get("content"):
+            robots = robots_tag['content'].strip()
 
-        meta_keywords = ""
-        keywords_tag = soup.find("meta", attrs={"name": "keywords"})
-        if keywords_tag and keywords_tag.get("content"):
-            meta_keywords = keywords_tag['content'].strip()
+        for link in soup.find_all("link", rel="canonical"):
+            href = link.get("href")
+            if href:
+                canonicals.append(href.strip())
 
-        h1 = ""
-        h1_tag = soup.find("h1")
-        if h1_tag:
-            h1 = h1_tag.get_text(strip=True)
+        # Títulos
+        titles = [tag.get_text(strip=True) for tag in soup.find_all("title") if tag.get_text(strip=True)]
 
-        imagenes = []
-        peso_total = 0
-        alt_imagenes = []
+        # Meta Descriptions
+        meta_descriptions = [
+            tag['content'].strip()
+            for tag in soup.find_all("meta", attrs={"name": "description"})
+            if tag.get("content")
+        ]
 
+        # Meta Keywords
+        meta_keywords = [
+            tag['content'].strip()
+            for tag in soup.find_all("meta", attrs={"name": "keywords"})
+            if tag.get("content")
+        ]
+
+        # H1
+        h1s = [h.get_text(strip=True) for h in soup.find_all("h1") if h.get_text(strip=True)]
+
+        # Imágenes
+        imagenes_info = []
         for img in soup.find_all("img"):
             src = img.get("src")
+            alt = img.get("alt", "").strip() if img.has_attr("alt") else ""
+            peso = 0
+
             if src:
                 img_url = requests.compat.urljoin(url, src)
                 try:
                     r = requests.head(img_url, timeout=5)
-                    size = int(r.headers.get("Content-Length", 0))
-                    peso_total += size
-                    imagenes.append(img_url)
+                    peso = int(r.headers.get("Content-Length", 0))
                 except:
-                    imagenes.append(img_url)
-            if img.get("alt"):
-                alt_imagenes.append(img.get("alt"))
+                    pass
 
+                imagenes_info.append({
+                    "URL": img_url,
+                    "ALT": alt,
+                    "Peso (bytes)": peso
+                })
+
+        # Datos estructurados
         datos_estructurados = []
         for script in soup.find_all("script", type="application/ld+json"):
             try:
-                datos = json.loads(script.string)
-                datos_estructurados.append(datos)
+                data = json.loads(script.string)
+                if isinstance(data, list):
+                    datos_estructurados.extend(data)
+                else:
+                    datos_estructurados.append(data)
             except:
                 continue
 
         return {
-            "title": title,
-            "meta_description": meta_description,
+            "codigo": codigo_estado,
+            "robots": robots,
+            "canonicals": canonicals,
+            "titles": titles,
+            "meta_descriptions": meta_descriptions,
             "meta_keywords": meta_keywords,
-            "h1": h1,
-            "imagenes": imagenes,
-            "peso_total": peso_total,
-            "alt_imagenes": alt_imagenes,
+            "h1s": h1s,
+            "imagenes": imagenes_info,
             "datos_estructurados": datos_estructurados
         }
 

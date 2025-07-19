@@ -4,6 +4,7 @@ import pandas as pd
 from index_check import limpiar_url, obtener_enlaces_internos, analizar_indexabilidad, clasificar_tipo_pagina
 from contenido_repetido import extraer_bloques_editoriales
 from analisis_seo import analizar_texto
+from analisis_tecnico import analizar_tecnico
 from rapidfuzz import fuzz
 
 st.set_page_config(page_title="Análisis de Indexabilidad", layout="wide")
@@ -22,6 +23,8 @@ if 'contenido_variable' not in st.session_state:
     st.session_state.contenido_variable = {}
 if 'resultados_seo' not in st.session_state:
     st.session_state.resultados_seo = {}
+if 'resultados_tecnicos' not in st.session_state:
+    st.session_state.resultados_tecnicos = {}
 if 'texto_analizado_por_url' not in st.session_state:
     st.session_state.texto_analizado_por_url = {}
 if 'html_analizado_por_url' not in st.session_state:
@@ -161,6 +164,9 @@ if st.session_state.modo_contenido:
             st.session_state.resultados_seo[siguiente] = resultado
             st.session_state.texto_analizado_por_url[siguiente] = texto
             st.session_state.html_analizado_por_url[siguiente] = html
+
+            resultado_tecnico = analizar_tecnico(siguiente)
+            st.session_state.resultados_tecnicos[siguiente] = resultado_tecnico
         else:
             st.warning(f"El contenido de `{siguiente}` está vacío o fue totalmente filtrado.")
 
@@ -168,33 +174,89 @@ if st.session_state.modo_contenido:
         time.sleep(0.3)
         st.rerun()
 
-# Mostrar métricas si hay resultados SEO analizados
-if st.session_state.resultados_seo:
+# Mostrar análisis SEO disponibles mientras se evalúa
+urls_analizadas = list(st.session_state.resultados_seo.keys())
+if urls_analizadas:
     st.sidebar.markdown("## 🔗 Selecciona una URL")
     seleccion = st.sidebar.radio(
         "URLs con análisis semántico",
-        list(st.session_state.resultados_seo.keys())
+        urls_analizadas,
+        key="seleccion_url"
     )
+else:
+    seleccion = None
 
-    if seleccion:
-        st.markdown(f"## 📊 Detalle SEO para: `{seleccion}`")
-        res = st.session_state.resultados_seo[seleccion]
+# Mostrar detalle del análisis
+if seleccion:
+    st.markdown(f"## 📊 Detalle SEO para: `{seleccion}`")
+    res = st.session_state.resultados_seo[seleccion]
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("📖 Legibilidad", f"{res['indice_legibilidad']:.2f}")
-            st.metric("🎓 Nivel educativo", res['nivel_educativo'])
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("📖 Legibilidad", f"{res['indice_legibilidad']:.2f}")
+        st.metric("🎓 Nivel educativo", res['nivel_educativo'])
 
-        with col2:
-            st.metric("📝 Palabras", res['num_palabras'])
-            st.metric("📄 Párrafos", res['num_parrafos'])
+    with col2:
+        st.metric("📝 Palabras", res['num_palabras'])
+        st.metric("📄 Párrafos", res['num_parrafos'])
 
-        st.markdown("### 🔍 Palabras clave extraídas")
-        for frase, count in res['palabras_clave']:
-            st.write(f"- {frase} ({count})")
+    st.markdown("### 🔍 Palabras clave extraídas")
+    for frase, count in res['palabras_clave']:
+        st.write(f"- {frase} ({count})")
 
-        # Mostrar contenido analizado como HTML renderizado
-        if seleccion in st.session_state.html_analizado_por_url:
-            with st.expander("🗾 Contenido analizado (HTML renderizado)"):
-                html = st.session_state.html_analizado_por_url.get(seleccion, "")
-                st.markdown(html, unsafe_allow_html=True)
+    if seleccion in st.session_state.html_analizado_por_url:
+        with st.expander("🗾 Contenido analizado (HTML renderizado)"):
+            html = st.session_state.html_analizado_por_url.get(seleccion, "")
+            st.markdown(html, unsafe_allow_html=True)
+
+    # Mostrar análisis técnico
+    if seleccion in st.session_state.resultados_tecnicos:
+        tecnico = st.session_state.resultados_tecnicos[seleccion]
+        st.markdown("---")
+        st.markdown("## 🛠️ Análisis Técnico")
+
+        if 'error' in tecnico:
+            st.error(f"Error al analizar: {tecnico['error']}")
+        else:
+            st.markdown(f"**Código de estado:** {tecnico['codigo']}")
+            st.markdown(f"**Robots:** {tecnico['robots'] or 'N/A'}")
+            st.markdown(f"**Canonical:** {', '.join(tecnico['canonicals']) if tecnico['canonicals'] else 'N/A'}")
+
+            st.markdown("**Títulos:**")
+            for t in tecnico['titles']:
+                st.write(f"- {t}")
+
+            st.markdown("**Meta Descriptions:**")
+            for d in tecnico['meta_descriptions']:
+                st.write(f"- {d}")
+
+            st.markdown("**Meta Keywords:**")
+            for k in tecnico['meta_keywords']:
+                st.write(f"- {k}")
+
+            st.markdown("**Encabezados H1:**")
+            for h in tecnico['h1s']:
+                st.write(f"- {h}")
+
+            st.markdown("**Imágenes encontradas:**")
+            for img in tecnico['imagenes']:
+                st.write(f"- 🖼 {img['URL']} | ALT: `{img['ALT']}` | Peso: {img['Peso (bytes)']} bytes")
+
+            st.markdown("### 📦 Datos estructurados")
+            if tecnico['datos_estructurados']:
+                for idx, schema in enumerate(tecnico['datos_estructurados']):
+                    if '@graph' in schema and isinstance(schema['@graph'], list):
+                        for subidx, sub_schema in enumerate(schema['@graph']):
+                            tipo = sub_schema.get('@type', f"Schema #{idx+1}-{subidx+1}")
+                            if isinstance(tipo, list):
+                                tipo = "/".join(tipo)
+                            with st.expander(f"🔖 {tipo}"):
+                                st.json(sub_schema)
+                    else:
+                        tipo = schema.get('@type', f"Schema #{idx+1}")
+                        if isinstance(tipo, list):
+                            tipo = "/".join(tipo)
+                        with st.expander(f"🔖 {tipo}"):
+                            st.json(schema)
+            else:
+                st.info("No se encontraron datos estructurados.")
