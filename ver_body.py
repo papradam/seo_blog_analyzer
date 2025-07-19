@@ -46,19 +46,26 @@ def extraer_bloques_editoriales(url):
 
         h1_text = soup.find('h1').get_text(strip=True) if soup.find('h1') else ""
         bloques = []
+
         for tag in body.find_all(['div', 'section', 'article', 'main', 'span']):
             if not es_bloque_editorial(tag):
                 continue
 
             texto = tag.get_text(separator='\n', strip=True)
+            html = str(tag)
+
             if h1_text and h1_text not in texto:
                 texto = h1_text + "\n" + texto
-            bloques.append(texto)
+                html = f"<h1>{h1_text}</h1>\n" + html
+
+            bloques.append({"texto": texto.strip(), "html": html.strip()})
+
         return bloques
     except:
         return []
 
 urls_input = st.text_area("Introduce 3 URLs (una por línea)", height=150)
+
 if st.button("Ejecutar análisis"):
     urls = [u.strip() for u in urls_input.splitlines() if u.strip()]
     if len(urls) != 3:
@@ -66,25 +73,29 @@ if st.button("Ejecutar análisis"):
     else:
         bloques_por_url = {url: extraer_bloques_editoriales(url) for url in urls}
 
-        # Detectar bloques repetidos solo por contenido
+        # Detectar bloques repetidos solo por texto
         repetidos_globales = set()
         for i in range(len(urls)):
             for j in range(i + 1, len(urls)):
                 for b1 in bloques_por_url[urls[i]]:
                     for b2 in bloques_por_url[urls[j]]:
-                        if fuzz.token_set_ratio(b1, b2) >= 90:
-                            repetidos_globales.add(b1)
-                            repetidos_globales.add(b2)
+                        if fuzz.token_set_ratio(b1["texto"], b2["texto"]) >= 90:
+                            repetidos_globales.add(b1["texto"])
+                            repetidos_globales.add(b2["texto"])
 
-        # Unir bloques únicos y mostrar el más largo
+        # Mostrar bloques únicos en texto y HTML
         for url in urls:
-            unicos = [b for b in bloques_por_url[url] if b not in repetidos_globales]
+            unicos = [b for b in bloques_por_url[url] if b["texto"] not in repetidos_globales]
             if not unicos:
                 st.warning(f"⚠️ No se encontró contenido único en {url}")
                 continue
 
-            texto_final = "\n\n".join(unicos).strip()
             st.markdown(f"## 🌐 {url}")
-            for parrafo in texto_final.split("\n"):
-                if parrafo.strip():
-                    st.write(parrafo.strip())
+            for i, bloque in enumerate(unicos, 1):
+                with st.expander(f"📄 Bloque {i} (texto)"):
+                    for parrafo in bloque["texto"].split("\n"):
+                        if parrafo.strip():
+                            st.write(parrafo.strip())
+
+                with st.expander(f"🧩 Bloque {i} (HTML original)"):
+                    st.code(bloque["html"], language="html")

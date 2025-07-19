@@ -4,6 +4,7 @@ from nltk.corpus import stopwords
 from collections import Counter
 from nltk.util import ngrams
 import string
+from bs4 import BeautifulSoup
 
 nltk.download('stopwords')
 stop_words = set(stopwords.words('spanish'))
@@ -52,21 +53,37 @@ def traducir_nivel_educativo(textstat_label):
             return val
     return "Desconocido"
 
+def contar_parrafos_contenido(html):
+    soup = BeautifulSoup(html, "html.parser")
+
+    def es_parrafo_valido(tag):
+        texto = tag.get_text(separator=" ", strip=True)
+        palabras = texto.split()
+        return len(palabras) >= 5
+
+    parrafos = soup.find_all("p")
+    items = soup.find_all("li")
+
+    parrafos_validos = [p for p in parrafos if es_parrafo_valido(p)]
+    items_validos = [li for li in items if es_parrafo_valido(li)]
+
+    return len(parrafos_validos) + len(items_validos)
+
 # ------------------------
 # Función principal
 # ------------------------
 
-def analizar_texto(texto):
+def analizar_texto(texto_plano, html):
     resultado = {}
 
-    resultado['indice_legibilidad'] = textstat.flesch_reading_ease(texto)
-    nivel_crudo = textstat.text_standard(texto, float_output=False)
+    resultado['indice_legibilidad'] = textstat.flesch_reading_ease(texto_plano)
+    nivel_crudo = textstat.text_standard(texto_plano, float_output=False)
     resultado['nivel_educativo'] = traducir_nivel_educativo(nivel_crudo)
 
-    resultado['num_palabras'] = len(texto.split())
-    resultado['num_caracteres'] = len(texto)
-    resultado['num_parrafos'] = max(1, texto.count("\n\n") + 1)
+    resultado['num_palabras'] = len(texto_plano.split())
+    resultado['num_caracteres'] = len(texto_plano)
+    resultado['num_parrafos'] = contar_parrafos_contenido(html)
 
-    resultado['palabras_clave'] = obtener_frases_clave(texto)
+    resultado['palabras_clave'] = obtener_frases_clave(texto_plano)
 
     return resultado

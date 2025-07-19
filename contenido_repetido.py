@@ -26,7 +26,7 @@ def es_bloque_editorial(tag) -> bool:
     cortas = [w for w in palabras if len(w) < 3]
     return len(cortas) / len(palabras) <= 0.3
 
-def extraer_bloques_editoriales(url: str) -> List[str]:
+def extraer_bloques_editoriales(url: str) -> List[Dict[str, str]]:
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         res = requests.get(url, headers=headers, timeout=10)
@@ -39,39 +39,28 @@ def extraer_bloques_editoriales(url: str) -> List[str]:
         for tag in body.find_all(['nav', 'header', 'footer', 'head', 'script', 'style']):
             tag.decompose()
 
-        h1_text = soup.find('h1').get_text(strip=True) if soup.find('h1') else ""
         bloques = []
-
         for tag in body.find_all(['div', 'section', 'article', 'main', 'span']):
             if not es_bloque_editorial(tag):
                 continue
 
-            texto = tag.get_text(separator="\n", strip=True)
-            if h1_text and h1_text not in texto:
-                texto = h1_text + "\n" + texto
-            bloques.append(texto)
+            bloques.append({
+                "texto": tag.get_text(separator="\n", strip=True),
+                "html": str(tag)
+            })
+
+        # Verificar si el h1 ya está incluido por texto
+            # Verificar si cada h1 (en HTML) ya está incluido en los bloques
+        for h1_tag in soup.find_all("h1"):
+            h1_html = str(h1_tag)
+            ya_incluido = any(h1_html in b["html"] for b in bloques)
+            if not ya_incluido:
+                bloques.insert(0, {
+                    "texto": h1_tag.get_text(separator=" ", strip=True),
+                    "html": h1_html
+                })
+
+
         return bloques
     except:
         return []
-
-def extraer_bloques_variables(urls: List[str], umbral_similitud: int = 90) -> Dict[str, List[str]]:
-    if len(urls) != 3:
-        raise ValueError("Esta función requiere exactamente 3 URLs.")
-
-    bloques_por_url = {url: extraer_bloques_editoriales(url) for url in urls}
-
-    # Comparar por contenido, no por clave
-    repetidos = set()
-    for i in range(len(urls)):
-        for j in range(i + 1, len(urls)):
-            for b1 in bloques_por_url[urls[i]]:
-                for b2 in bloques_por_url[urls[j]]:
-                    if fuzz.token_set_ratio(b1, b2) >= umbral_similitud:
-                        repetidos.add(b1)
-                        repetidos.add(b2)
-
-    resultado = {}
-    for url in urls:
-        resultado[url] = [b for b in bloques_por_url[url] if b not in repetidos]
-
-    return resultado

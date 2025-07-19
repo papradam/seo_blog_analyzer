@@ -2,8 +2,9 @@ import streamlit as st
 import time
 import pandas as pd
 from index_check import limpiar_url, obtener_enlaces_internos, analizar_indexabilidad, clasificar_tipo_pagina
-from contenido_repetido import extraer_bloques_variables
+from contenido_repetido import extraer_bloques_editoriales
 from analisis_seo import analizar_texto
+from rapidfuzz import fuzz
 
 st.set_page_config(page_title="Análisis de Indexabilidad", layout="wide")
 st.title("🔍 Análisis de Indexabilidad de URLs")
@@ -21,6 +22,10 @@ if 'contenido_variable' not in st.session_state:
     st.session_state.contenido_variable = {}
 if 'resultados_seo' not in st.session_state:
     st.session_state.resultados_seo = {}
+if 'texto_analizado_por_url' not in st.session_state:
+    st.session_state.texto_analizado_por_url = {}
+if 'html_analizado_por_url' not in st.session_state:
+    st.session_state.html_analizado_por_url = {}
 
 # Botón de inicio
 if st.session_state.estado == 'inicio':
@@ -60,12 +65,31 @@ else:
                 else:
                     st.session_state.modo_contenido = True
                     st.session_state.estado = 'pausado'
-                    urls_validas = [u['url'] for u in indexables[:3]]
-                    st.session_state.contenido_variable = extraer_bloques_variables(urls_validas)
-                    st.session_state.url_listado = [
-                        u for u in st.session_state.url_listado
-                        if not u.get('indexable') or u['url'] in urls_validas
-                    ]
+
+                    # Detectar bloques repetidos entre 3 URLs
+                    urls_para_comparar = [u['url'] for u in indexables[:3]]
+                    bloques_por_url = {
+                        url: extraer_bloques_editoriales(url)
+                        for url in urls_para_comparar
+                    }
+
+                    bloques_repetidos = set()
+                    for i in range(3):
+                        for j in range(i + 1, 3):
+                            for b1 in bloques_por_url[urls_para_comparar[i]]:
+                                for b2 in bloques_por_url[urls_para_comparar[j]]:
+                                    if fuzz.token_set_ratio(b1["texto"], b2["texto"]) >= 90:
+                                        bloques_repetidos.add(b1["texto"])
+                                        bloques_repetidos.add(b2["texto"])
+
+                    # Aplicar filtrado a todas las URLs válidas
+                    st.session_state.contenido_variable = {}
+                    for u in indexables:
+                        todos_bloques = extraer_bloques_editoriales(u['url'])
+                        bloques_unicos = [b for b in todos_bloques if b["html"] not in {x["html"] for url in urls_para_comparar for x in bloques_por_url[url] if x["texto"] in bloques_repetidos}]
+                        if bloques_unicos:
+                            st.session_state.contenido_variable[u['url']] = bloques_unicos
+
                 st.rerun()
 
 # Mostrar progreso
@@ -128,31 +152,49 @@ if st.session_state.modo_contenido:
     if urls_restantes:
         siguiente = urls_restantes[0]
         bloques = st.session_state.contenido_variable[siguiente]
-        texto = "\n\n".join(bloques).strip()
+
+        texto = "\n\n".join([b["texto"] for b in bloques]).strip()
+        html = "".join([b["html"] for b in bloques]).strip()
 
         if texto:
-            resultado = analizar_texto(texto)
+            resultado = analizar_texto(texto, html)
             st.session_state.resultados_seo[siguiente] = resultado
+            st.session_state.texto_analizado_por_url[siguiente] = texto
+            st.session_state.html_analizado_por_url[siguiente] = html
         else:
-            st.warning("El contenido es vacío o fue filtrado totalmente.")
+            st.warning(f"El contenido de `{siguiente}` está vacío o fue totalmente filtrado.")
 
-    # Mostrar resultados acumulados
-    if st.session_state.resultados_seo:
-        st.sidebar.markdown("## 🔗 Selecciona una URL")
-        seleccion = st.sidebar.radio("URLs con análisis", list(st.session_state.resultados_seo.keys()))
+        del st.session_state.contenido_variable[siguiente]
+        time.sleep(0.3)
+        st.rerun()
 
-        if seleccion:
-            res = st.session_state.resultados_seo[seleccion]
-            st.sidebar.markdown(f"### 📌 Resumen")
-            st.sidebar.markdown(f"- **Legibilidad:** {res['indice_legibilidad']:.2f}")
-            st.sidebar.markdown(f"- **Nivel educativo:** {res['nivel_educativo']}")
-            st.sidebar.markdown(f"- **Palabras:** {res['num_palabras']}")
-            st.sidebar.markdown(f"- **Párrafos:** {res['num_parrafos']}")
+# Mostrar métricas si hay resultados SEO analizados
+if st.session_state.resultados_seo:
+    st.sidebar.markdown("## 🔗 Selecciona una URL")
+    seleccion = st.sidebar.radio(
+        "URLs con análisis semántico",
+        list(st.session_state.resultados_seo.keys())
+    )
 
-            st.markdown(f"## 📊 Detalle SEO para {seleccion}")
-            st.markdown("### 🔍 Palabras clave")
-            for frase, count in res['palabras_clave']:
-                st.write(f"- {frase} ({count})")
-            
-    else:
-        st.success("✅ No hay contenido variable que analizar.")
+    if seleccion:
+        st.markdown(f"## 📊 Detalle SEO para: `{seleccion}`")
+        res = st.session_state.resultados_seo[seleccion]
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📖 Legibilidad", f"{res['indice_legibilidad']:.2f}")
+            st.metric("🎓 Nivel educativo", res['nivel_educativo'])
+
+        with col2:
+            st.metric("📝 Palabras", res['num_palabras'])
+            st.metric("📄 Párrafos", res['num_parrafos'])
+
+        st.markdown("### 🔍 Palabras clave extraídas")
+        for frase, count in res['palabras_clave']:
+            st.write(f"- {frase} ({count})")
+
+        # Mostrar contenido analizado como HTML renderizado
+        if seleccion in st.session_state.html_analizado_por_url:
+            with st.expander("🗾 Contenido analizado (HTML renderizado)"):
+                html = st.session_state.html_analizado_por_url.get(seleccion, "")
+                st.markdown(html, unsafe_allow_html=True)
