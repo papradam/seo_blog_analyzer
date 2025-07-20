@@ -55,26 +55,24 @@ Editar
 
 1. Clona este repositorio:
 
-```bash
 git clone https://github.com/tu-usuario/seo_blog_analyzer.git
 cd seo_blog_analyzer
 Crea un entorno virtual (opcional pero recomendado):
 
-bash
 Copiar
 Editar
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\\Scripts\\activate
 Instala las dependencias:
 
-bash
+
 Copiar
 Editar
 pip install -r requirements.txt
 🧪 Uso del programa
 Ejecuta la aplicación:
 
-bash
+
 Copiar
 Editar
 streamlit run app.py
@@ -97,7 +95,7 @@ Reduce la longitud de los párrafos
 
 Reescribe contenido duplicado
 
-##📋 Notas adicionales
+## 📋 Notas adicionales
 Este proyecto está orientado a fines académicos y puede adaptarse fácilmente para otros blogs o CMS.
 
 El análisis semántico puede ampliarse con modelos de lenguaje más avanzados.
