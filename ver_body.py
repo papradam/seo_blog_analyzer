@@ -4,8 +4,10 @@ from bs4 import BeautifulSoup
 from rapidfuzz import fuzz
 import re
 
-st.set_page_config(page_title="Bloque principal por URL", layout="wide")
-st.title("🧪 Detección del contenido editorial único y completo")
+st.set_page_config(page_title="Test contenido único PABIA", layout="wide")
+st.title("Detección del contenido editorial único y completo")
+st.caption("Sección de pruebas de una parte del trabajo de grado del Master de Data Science de Paola Andrea Prada Marín")
+
 
 def es_bloque_editorial(tag) -> bool:
     texto_total = tag.get_text(separator=" ", strip=True)
