@@ -4,23 +4,26 @@ import matplotlib.pyplot as plt
 from collections import Counter
 from wordcloud import WordCloud
 
+def graficar_barra(serie, color, titulo=None, ylabel=None, height=2.5):
+    fig, ax = plt.subplots(figsize=(6, height))
+    serie.plot(kind='bar', ax=ax, color=color)
+    if titulo:
+        ax.set_title(titulo)
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    st.pyplot(fig)
 
 def mostrar_informe_resultados():
     st.title("📊 Informe General del Análisis SEO")
 
-    # --- Obtener datos desde url_listado ---
-    urls_completadas = [
-        u for u in st.session_state.url_listado
-        if u.get("analisis_contenido") == "completado"
-    ]
-
+    urls_completadas = [u for u in st.session_state.url_listado if u.get("analisis_contenido") == "completado"]
     if not urls_completadas:
         st.warning("Aún no hay análisis de contenido disponibles.")
         return
 
-    datos = []
-    palabras_clave_totales = []
-    detalle_urls = []
+    # ---------------- SEMÁNTICO ----------------
+    st.header("📚 Análisis Semántico del Contenido")
+    datos, palabras_clave_totales, detalle_urls = [], [], []
 
     for u in urls_completadas:
         res = u["resultado_seo"]
@@ -31,119 +34,72 @@ def mostrar_informe_resultados():
             "Legibilidad": res["indice_legibilidad"],
             "Nivel educativo": res["nivel_educativo"]
         })
-        palabras_clave_totales.extend([frase for frase, _ in res["palabras_clave"]])
+        palabras_clave_totales.extend([kw for kw, _ in res["palabras_clave"]])
         detalle_urls.append({
             "URL": u["url"],
             "Legibilidad": res["indice_legibilidad"],
             "Nivel educativo": res["nivel_educativo"],
             "Palabras": res["num_palabras"],
             "Párrafos": res["num_parrafos"],
-            "Palabras clave": ", ".join([f"{frase} ({count})" for frase, count in res["palabras_clave"]]) or "-"
+            "Palabras clave": ", ".join([f"{kw} ({count})" for kw, count in res["palabras_clave"]]) or "-"
         })
 
     df = pd.DataFrame(datos)
 
-    # --- Métricas generales ---
-    st.markdown("### 🧮 Métricas promedio generales")
+    st.subheader("🧮 Métricas Promedio")
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📖 Legibilidad promedio", f"{df['Legibilidad'].mean():.2f}")
-    with col2:
-        st.metric("📝 Palabras promedio", f"{df['Palabras'].mean():.0f}")
-    with col3:
-        st.metric("📄 Párrafos promedio", f"{df['Párrafos'].mean():.0f}")
+    col1.metric("📖 Legibilidad", f"{df['Legibilidad'].mean():.2f}")
+    col2.metric("📝 Palabras", f"{df['Palabras'].mean():.0f}")
+    col3.metric("📄 Párrafos", f"{df['Párrafos'].mean():.0f}")
 
-    # --- Distribuciones gráficas ---
-    st.markdown("### 📏 Distribución por rangos de contenido")
+    st.subheader("📏 Distribución de Palabras y Párrafos")
     col4, col5 = st.columns(2)
+
     with col4:
-        st.markdown("#### 📊 Rango de palabras")
-        bins_palabras = [0, 300, 600, 900, 1200, 1500, 2000, 3000, 5000, 10000]
-        df["Rango de palabras"] = pd.cut(df["Palabras"], bins=bins_palabras)
-        palabras_rangos = df["Rango de palabras"].value_counts().sort_index()
-        fig1, ax1 = plt.subplots()
-        palabras_rangos.plot(kind='bar', ax=ax1, color="#69b3a2")
-        ax1.set_xlabel("Franja de palabras")
-        ax1.set_ylabel("Cantidad de URLs")
-        ax1.set_title("Distribución de palabras")
-        st.pyplot(fig1)
+        df["Rango de palabras"] = pd.cut(df["Palabras"], bins=[0,300,600,900,1200,1500,2000,3000,5000,10000])
+        graficar_barra(df["Rango de palabras"].value_counts().sort_index(), "#69b3a2", "Distribución de Palabras", "Cantidad de URLs")
 
     with col5:
-        st.markdown("#### 📊 Rango de párrafos")
-        bins_parrafos = [0, 3, 6, 9, 12, 15, 20, 30, 50, 100]
-        df["Rango de párrafos"] = pd.cut(df["Párrafos"], bins=bins_parrafos)
-        parrafos_rangos = df["Rango de párrafos"].value_counts().sort_index()
-        fig2, ax2 = plt.subplots()
-        parrafos_rangos.plot(kind='bar', ax=ax2, color="#ffb347")
-        ax2.set_xlabel("Franja de párrafos")
-        ax2.set_ylabel("Cantidad de URLs")
-        ax2.set_title("Distribución de párrafos")
-        st.pyplot(fig2)
+        df["Rango de párrafos"] = pd.cut(df["Párrafos"], bins=[0,3,6,9,12,15,20,30,50,100])
+        graficar_barra(df["Rango de párrafos"].value_counts().sort_index(), "#ffb347", "Distribución de Párrafos", "Cantidad de URLs")
 
-    st.markdown("### 🎓 Nivel educativo estimado (conteo)")
-    nivel_counts = df["Nivel educativo"].value_counts()
-    st.bar_chart(nivel_counts)
+    st.subheader("🎓 Nivel Educativo Estimado")
+    st.bar_chart(df["Nivel educativo"].value_counts())
 
-    # --- Wordcloud ---
-    st.markdown("### ☁️ Nube de palabras clave")
+    st.subheader("☁️ Nube de Palabras Clave")
     if palabras_clave_totales:
-        texto_keywords = " ".join(palabras_clave_totales)
-        wordcloud = WordCloud(width=800, height=300, background_color="white").generate(texto_keywords)
+        wc = WordCloud(width=800, height=300, background_color="white").generate(" ".join(palabras_clave_totales))
         fig_wc, ax_wc = plt.subplots(figsize=(10, 4))
-        ax_wc.imshow(wordcloud, interpolation='bilinear')
+        ax_wc.imshow(wc, interpolation='bilinear')
         ax_wc.axis("off")
         st.pyplot(fig_wc)
     else:
-        st.info("No se han identificado palabras clave en los análisis.")
+        st.info("No se han identificado palabras clave.")
 
-    st.markdown("### 📄 Detalle por URL")
-    with st.expander("Ver tabla completa de análisis por URL"):
-        detalle_df = pd.DataFrame(detalle_urls).set_index("URL")
-        st.dataframe(detalle_df, use_container_width=True)
+    with st.expander("📋 Ver tabla de análisis por URL"):
+        st.dataframe(pd.DataFrame(detalle_urls).set_index("URL"), use_container_width=True)
 
-    # === ANÁLISIS TÉCNICO ===
-    st.title("🛠️ Análisis Técnico")
-    tecnicos = [u["resultado_tecnico"] for u in urls_completadas if "resultado_tecnico" in u]
+    st.divider()
 
-    codigos = []
-    robots_list = []
+    # ---------------- TÉCNICO ----------------
+    st.header("🛠️ Análisis Técnico")
+
+    tecnicos = [u.get("resultado_tecnico", {}) for u in urls_completadas]
+    codigos, robots_list = [], []
     canonicals_count = {"Falta": 0, "Múltiple": 0}
-    resumen_tecnico = []
 
-    for u in urls_completadas:
-        t = u.get("resultado_tecnico", {})
-        if not t:
-            continue
-
-        resumen_tecnico.append({
-            "URL": u["url"],
-            "Código de estado": t.get("codigo", "-"),
-            "Meta Robots": t.get("robots", "-"),
-            "Canonical": ", ".join(t.get("canonicals", []) or ["-"]),
-            "Title": ", ".join(t.get("titles", []) or ["-"]),
-            "Meta descripción": ", ".join(t.get("meta_descriptions", []) or ["-"]),
-            "Meta keywords": ", ".join(t.get("meta_keywords", []) or ["-"]),
-            "H1": ", ".join(t.get("h1s", []) or ["-"]),
-            "Imágenes": ", ".join(sorted(set(img.get("URL", "") for img in t.get("imagenes", [])))) or "-",
-            "Tipos de datos estructurados": ", ".join(
-                sorted(set(
-                    item.get("@type", "Sin tipo") if isinstance(item.get("@type", ""), str)
-                    else "/".join(item.get("@type", []))
-                    for schema in t.get("datos_estructurados", [])
-                    for item in (schema.get("@graph", [schema]) if schema else [])
-                ))
-            ) or "-"
-        })
-
-        codigos.append(t.get("codigo", 0))
-        robots_list.append(t.get("robots") or "N/A")
-        canonicals = t.get("canonicals", [])
+    for res in tecnicos:
+        codigos.append(res.get("codigo"))
+        robots_list.append(res.get("robots") or "N/A")
+        canonicals = res.get("canonicals", [])
         if not canonicals:
             canonicals_count["Falta"] += 1
         elif len(canonicals) > 1:
             canonicals_count["Múltiple"] += 1
+        else:
+            canonicals_count["Múltiple"] += 1
 
-    st.markdown("### 🔎 Análisis de indexabilidad")
+    st.subheader("🔎 Indexabilidad")
     colx1, colx2, colx3 = st.columns(3)
 
     with colx1:
@@ -157,23 +113,153 @@ def mostrar_informe_resultados():
 
     with colx2:
         st.markdown("#### Meta Robots")
-        if robots_list:
-            robots_series = pd.Series(robots_list).value_counts()
-            fig, ax = plt.subplots()
-            robots_series.plot(kind="bar", ax=ax, color="#6c9fbc")
-            ax.set_ylabel("Cantidad de URLs")
-            ax.set_title("Distribución de robots")
-            st.pyplot(fig)
+        graficar_barra(pd.Series(robots_list).value_counts(), "#6c9fbc", "Distribución de Robots", "Cantidad de URLs", height=2.5)
 
     with colx3:
         st.markdown("#### Canonicals")
-        fig, ax = plt.subplots()
-        pd.Series(canonicals_count).plot(kind="bar", ax=ax, color="#d4a5a5")
-        ax.set_ylabel("Cantidad de URLs")
-        ax.set_title("Tipos de canonicals")
-        st.pyplot(fig)
+        graficar_barra(pd.Series(canonicals_count), "#d4a5a5", "Tipos de Canonicals", "Cantidad de URLs", height=2.5)
 
-    # --- Tabla técnica final ---
+    def procesar_meta(tecnicos):
+        resultados = {
+            "titles": {"Falta": 0, "Duplicado": 0, ">60 caracteres": 0, "<30 caracteres": 0, "Igual que h1": 0, "Múltiple": 0},
+            "descriptions": {"Falta": 0, "Duplicado": 0, ">150 caracteres": 0, "<120 caracteres": 0, "Múltiple": 0},
+            "keywords": {"Falta": 0, "Duplicado": 0, "Múltiple": 0},
+            "h1s": {"Falta": 0, "Duplicado": 0, ">70 caracteres": 0, "Múltiple": 0},
+        }
+        trackers = {"titles": {}, "descriptions": {}, "keywords": {}, "h1s": {}}
+
+        for res in tecnicos:
+            ts, ds, ks, h1s = res.get("titles", []), res.get("meta_descriptions", []), res.get("meta_keywords", []), res.get("h1s", [])
+
+            def contar(meta, lista, minlen, maxlen, igual_h1=False):
+                if not lista:
+                    resultados[meta]["Falta"] += 1
+                else:
+                    if len(lista) > 1:
+                        resultados[meta]["Múltiple"] += 1
+                    valor = lista[0].strip().lower()
+                    trackers[meta][valor] = trackers[meta].get(valor, 0) + 1
+                    if len(valor) < minlen:
+                        resultados[meta][f"<{minlen} caracteres"] += 1
+                    if len(valor) > maxlen:
+                        resultados[meta][f">{maxlen} caracteres"] += 1
+                    if igual_h1 and h1s and valor == h1s[0].strip().lower():
+                        resultados["titles"]["Igual que h1"] += 1
+
+            contar("titles", ts, 30, 60, igual_h1=True)
+            contar("descriptions", ds, 120, 150)
+            contar("keywords", ks, 0, 999)
+            contar("h1s", h1s, 0, 70)
+
+        for meta in trackers:
+            resultados[meta]["Duplicado"] = sum(1 for v in trackers[meta].values() if v > 1)
+        return resultados
+
+    resultados_meta = procesar_meta(tecnicos)
+
+    colm1, colm2 = st.columns(2)
+    with colm1:
+        st.markdown("#### Titles")
+        graficar_barra(pd.Series(resultados_meta["titles"]), "#8faadc", height=2.5)
+
+    with colm2:
+        st.markdown("#### Meta Descriptions")
+        graficar_barra(pd.Series(resultados_meta["descriptions"]), "#fac27b", height=2.5)
+
+    colm3, colm4 = st.columns(2)
+    with colm3:
+        st.markdown("#### Meta Keywords")
+        graficar_barra(pd.Series(resultados_meta["keywords"]), "#d88fa3", height=2.5)
+
+    with colm4:
+        st.markdown("#### Encabezados H1")
+        graficar_barra(pd.Series(resultados_meta["h1s"]), "#94d0cc", height=2.5)
+
+    imagenes_unicas = {}
+    for res in tecnicos:
+        for img in res.get("imagenes", []):
+            url = img.get("URL")
+            if url and url not in imagenes_unicas:
+                imagenes_unicas[url] = {
+                    "ALT": img.get("ALT", ""),
+                    "Peso": img.get("Peso (bytes)", 0)
+                }
+
+    alt_largos = sum(1 for i in imagenes_unicas.values() if len(i["ALT"]) > 100)
+    sin_alt = sum(1 for i in imagenes_unicas.values() if not i["ALT"].strip())
+    peso_alto = sum(1 for i in imagenes_unicas.values() if i["Peso"] > 100000)
+
+    imagenes_eval = {
+        "Falta ALT": sin_alt,
+        "ALT > 100 caracteres": alt_largos,
+        "> 100KB": peso_alto
+    }
+
+    st.subheader("🖼️ Imágenes")
+    graficar_barra(pd.Series(imagenes_eval), "#cdb4db", "Evaluación de Imágenes", "Cantidad de Imágenes", height=2.5)
+
+    st.divider()
+
+    # ---------------- DATOS ESTRUCTURADOS ----------------
+    st.header("📦 Datos Estructurados")
+
+    tipo_schema = {}
+    detalle_schema = {}
+    resumen_tecnico = []
+
+    for u in urls_completadas:
+        res = u.get("resultado_tecnico", {})
+        resumen = {
+            "URL": u["url"],
+            "Código de estado": res.get("codigo", "-"),
+            "Meta Robots": res.get("robots", "-"),
+            "Canonical": ", ".join(res.get("canonicals", []) or ["-"]),
+            "Title": ", ".join(res.get("titles", []) or ["-"]),
+            "Meta descripción": ", ".join(res.get("meta_descriptions", []) or ["-"]),
+            "Meta keywords": ", ".join(res.get("meta_keywords", []) or ["-"]),
+            "H1": ", ".join(res.get("h1s", []) or ["-"]),
+            "Imágenes": ", ".join(sorted(set(img.get("URL", "") for img in res.get("imagenes", [])))) or "-",
+            "Tipos de datos estructurados": "-"
+        }
+
+        tipos_actuales = set()
+        vistos = set()
+        for schema in res.get("datos_estructurados", []):
+            bloques = schema.get("@graph", [schema])
+            for item in bloques:
+                tipo = item.get("@type")
+                if not tipo:
+                    continue
+                if isinstance(tipo, list):
+                    tipo = "/".join(tipo)
+                clave_id = f"{u['url']}::{tipo}"
+                if clave_id in vistos:
+                    continue
+                vistos.add(clave_id)
+
+                tipo_schema[tipo] = tipo_schema.get(tipo, 0) + 1
+                if tipo not in detalle_schema:
+                    detalle_schema[tipo] = []
+                detalle_schema[tipo].append((u["url"], item))
+                tipos_actuales.add(tipo)
+
+        resumen["Tipos de datos estructurados"] = ", ".join(sorted(tipos_actuales)) or "-"
+        resumen_tecnico.append(resumen)
+
+    if tipo_schema:
+        st.bar_chart(pd.Series(tipo_schema).sort_values(ascending=False))
+        for tipo, elementos in detalle_schema.items():
+            with st.expander(f"🔍 {tipo} ({len(elementos)})"):
+                for url, item in elementos:
+                    st.markdown(f"**URL:** {url}")
+                    for k, v in item.items():
+                        if k != "@type":
+                            st.write(f"- **{k}**: {v}")
+                    st.markdown("---")
+    else:
+        st.info("No se encontraron datos estructurados.")
+
+    st.divider()
     with st.expander("🗂️ Ver tabla resumen técnica por URL"):
         df_resumen = pd.DataFrame(resumen_tecnico)
         st.dataframe(df_resumen, use_container_width=True)

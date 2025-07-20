@@ -1,37 +1,52 @@
-# utils/visualizacion.py
 import streamlit as st
 
 def mostrar_resultado_individual():
-    # Filtrar solo URLs completadas de tipo contenido
+    """Muestra el sidebar con el botón de informe y el selector de URL."""
     urls_analizadas = [
         u['url'] for u in st.session_state.url_listado
         if u.get('tipo_pagina') == 'contenido' and u.get('analisis_contenido') == 'completado'
     ]
 
-    # Si no hay URLs listas, no mostrar la sección
     if not urls_analizadas:
         return
 
-    # Sidebar con botón de informe y selector de URLs
+    # Asegurar que la selección actual sea válida
+    seleccion_actual = st.session_state.get("radio_seleccion_url")
+    if seleccion_actual not in urls_analizadas:
+        seleccion_actual = urls_analizadas[0]
+        st.session_state["radio_seleccion_url"] = seleccion_actual
+
     with st.sidebar:
         st.markdown("## 📊 Resultados Disponibles")
-        # Botón que activa el informe en un solo clic
+
         st.button(
             "📊 Resultados del análisis",
             key="btn_resultados_sidebar",
-            on_click=lambda: st.session_state.update({"ver_informe": True})
-        )
-        st.markdown("---")
-        st.markdown("## 🔗 Selecciona una URL")
-        seleccion = st.radio(
-            "URLs con análisis semántico",
-            urls_analizadas,
-            key="radio_seleccion_url",
-            index=0
+            on_click=lambda: st.session_state.update({
+                "ver_informe": True,
+                "radio_seleccion_url": None  # limpia selección individual
+            })
         )
 
-    # Mostrar detalles SEO y técnico de la URL seleccionada
-    datos_url = next((u for u in st.session_state.url_listado if u['url'] == seleccion), None)
+        st.markdown("---")
+        st.markdown("## 🔗 Selecciona una URL")
+
+        nueva_seleccion = st.radio(
+            "URLs con análisis semántico",
+            urls_analizadas,
+            index=urls_analizadas.index(st.session_state["radio_seleccion_url"])
+            if st.session_state.get("radio_seleccion_url") in urls_analizadas
+            else 0
+        )
+
+        # Si cambia la selección, actualiza estado y oculta informe
+        if nueva_seleccion != st.session_state.get("radio_seleccion_url"):
+            st.session_state["radio_seleccion_url"] = nueva_seleccion
+            st.session_state["ver_informe"] = False
+
+def mostrar_detalle_url(url):
+    """Muestra el análisis SEO y técnico de una URL individual en pantalla principal."""
+    datos_url = next((u for u in st.session_state.url_listado if u['url'] == url), None)
     if not datos_url:
         st.error("Error: datos de la URL no encontrados en el estado.")
         return
@@ -40,7 +55,7 @@ def mostrar_resultado_individual():
     tecnico = datos_url.get('resultado_tecnico', {})
     html = datos_url.get('bloques_html', [])
 
-    st.markdown(f"## 📊 Detalle SEO para: `{seleccion}`")
+    st.markdown(f"## 📊 Detalle SEO para: `{url}`")
 
     col1, col2 = st.columns(2)
     with col1:

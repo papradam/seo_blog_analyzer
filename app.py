@@ -7,23 +7,21 @@ from utils.controles import mostrar_botones_control
 from utils.progreso import mostrar_panel_progreso
 from utils.indexabilidad import procesar_indexabilidad
 from utils.analisis_contenido import procesar_analisis_contenido
-from utils.visualizacion import mostrar_resultado_individual
+from utils.visualizacion import mostrar_resultado_individual, mostrar_detalle_url
 from utils.informe import mostrar_informe_resultados
 
+# Configuración general
 st.set_page_config(page_title="Análisis de Indexabilidad", layout="wide")
 st.title("🔍 Análisis de Indexabilidad de URLs")
 
+# Input principal
 url_blog = st.text_input("📍 URL del blog principal")
 
 def main():
+    # Estado inicial
     inicializar_estado()
 
-    # Si el usuario ya pidió ver el informe, lo muestro y paro la app
-    if st.session_state.get("ver_informe", False):
-        mostrar_informe_resultados()
-        st.stop()
-
-    # Paso inicial: solicitar la URL y arrancar
+    # Fase de arranque
     if st.session_state.estado == 'inicio':
         if st.button("🚀 Iniciar proceso") and url_blog:
             st.session_state.estado = 'activo'
@@ -46,20 +44,27 @@ def main():
     else:
         mostrar_botones_control(url_blog)
 
-    # Barra de progreso de indexabilidad (antes de contenido)
+    # Progreso de indexabilidad (solo si no está en análisis de contenido)
     if st.session_state.estado != 'inicio' and not st.session_state.modo_contenido:
         mostrar_panel_progreso()
 
-    # Lógica de indexabilidad
+    # Evaluación de indexabilidad
     if st.session_state.estado == 'activo':
         procesar_indexabilidad(url_blog)
 
-    # Lógica de análisis de contenido
+    # Análisis de contenido
     if st.session_state.modo_contenido:
         procesar_analisis_contenido()
 
-    # Solo queda llamar a la visualización de resultados (que ya inyecta el botón correcto)
+    # === Visualización (pantalla principal dinámica) ===
+    # 1. Mostrar siempre el sidebar
     mostrar_resultado_individual()
+
+    # 2. Mostrar contenido en la pantalla principal según lo seleccionado
+    if st.session_state.get("ver_informe", False):
+        mostrar_informe_resultados()
+    elif st.session_state.get("radio_seleccion_url"):
+        mostrar_detalle_url(st.session_state["radio_seleccion_url"])
 
 if __name__ == "__main__":
     main()
