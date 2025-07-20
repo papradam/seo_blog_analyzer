@@ -1,92 +1,96 @@
-# visualizacion.py
+# utils/visualizacion.py
 import streamlit as st
 
 def mostrar_resultado_individual():
-    urls_analizadas = list(st.session_state.resultados_seo.keys())
-    if urls_analizadas:
-        st.sidebar.markdown("## 🔗 Selecciona una URL")
-        seleccion = st.sidebar.radio(
+    # Filtrar solo URLs completadas de tipo contenido
+    urls_analizadas = [
+        u['url'] for u in st.session_state.url_listado
+        if u.get('tipo_pagina') == 'contenido' and u.get('analisis_contenido') == 'completado'
+    ]
+
+    # Si no hay URLs listas, no mostrar la sección
+    if not urls_analizadas:
+        return
+
+    # Sidebar con botón de informe y selector de URLs
+    with st.sidebar:
+        st.markdown("## 📊 Resultados Disponibles")
+        # Botón que activa el informe en un solo clic
+        st.button(
+            "📊 Resultados del análisis",
+            key="btn_resultados_sidebar",
+            on_click=lambda: st.session_state.update({"ver_informe": True})
+        )
+        st.markdown("---")
+        st.markdown("## 🔗 Selecciona una URL")
+        seleccion = st.radio(
             "URLs con análisis semántico",
             urls_analizadas,
-            key="seleccion_url",
+            key="radio_seleccion_url",
             index=0
         )
-    else:
-        seleccion = None
 
-    # Mostrar mensaje mientras se evalúan más URLs
-    if st.session_state.modo_contenido and st.session_state.contenido_variable:
-        st.sidebar.info("🔄 Evaluando más URLs, actualizando automáticamente...")
+    # Mostrar detalles SEO y técnico de la URL seleccionada
+    datos_url = next((u for u in st.session_state.url_listado if u['url'] == seleccion), None)
+    if not datos_url:
+        st.error("Error: datos de la URL no encontrados en el estado.")
+        return
 
-    if seleccion:
-        st.markdown(f"## 📊 Detalle SEO para: `{seleccion}`")
-        res = st.session_state.resultados_seo[seleccion]
+    res = datos_url.get('resultado_seo', {})
+    tecnico = datos_url.get('resultado_tecnico', {})
+    html = datos_url.get('bloques_html', [])
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("📖 Legibilidad", f"{res['indice_legibilidad']:.2f}")
-            st.metric("🎓 Nivel educativo", res['nivel_educativo'])
+    st.markdown(f"## 📊 Detalle SEO para: `{seleccion}`")
 
-        with col2:
-            st.metric("📝 Palabras", res['num_palabras'])
-            st.metric("📄 Párrafos", res['num_parrafos'])
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("📖 Legibilidad", f"{res.get('indice_legibilidad', 0):.2f}")
+        st.metric("🎓 Nivel educativo", res.get('nivel_educativo', 'N/A'))
+    with col2:
+        st.metric("📝 Palabras", res.get('num_palabras', 0))
+        st.metric("📄 Párrafos", res.get('num_parrafos', 0))
 
-        st.markdown("### 🔍 Palabras clave extraídas")
-        for frase, count in res['palabras_clave']:
-            st.write(f"- {frase} ({count})")
+    st.markdown("### 🔍 Palabras clave extraídas")
+    for frase, count in res.get('palabras_clave', []):
+        st.write(f"- {frase} ({count})")
 
-        if seleccion in st.session_state.html_analizado_por_url:
-            with st.expander("🗾 Contenido analizado (HTML renderizado)"):
-                html = st.session_state.html_analizado_por_url.get(seleccion, "")
-                st.markdown(html, unsafe_allow_html=True)
+    if html:
+        with st.expander("🗾 Contenido analizado (HTML renderizado)"):
+            st.markdown("".join(html), unsafe_allow_html=True)
 
-        if seleccion in st.session_state.resultados_tecnicos:
-            tecnico = st.session_state.resultados_tecnicos[seleccion]
-            st.markdown("---")
-            st.markdown("## 🛠️ Análisis Técnico")
+    if tecnico:
+        st.markdown("---")
+        st.markdown("## 🛠️ Análisis Técnico")
+        if 'error' in tecnico:
+            st.error(f"Error al analizar: {tecnico['error']}")
+        else:
+            st.markdown(f"**Código de estado:** {tecnico.get('codigo', 'N/A')}")
+            st.markdown(f"**Robots:** {tecnico.get('robots') or 'N/A'}")
+            st.markdown(f"**Canonical:** {', '.join(tecnico.get('canonicals') or []) or 'N/A'}")
 
-            if 'error' in tecnico:
-                st.error(f"Error al analizar: {tecnico['error']}")
+            for label, field in [
+                ("Títulos", 'titles'),
+                ("Meta Descriptions", 'meta_descriptions'),
+                ("Meta Keywords", 'meta_keywords'),
+                ("Encabezados H1", 'h1s')
+            ]:
+                st.markdown(f"**{label}:**")
+                for item in tecnico.get(field, []):
+                    st.write(f"- {item}")
+
+            st.markdown("**Imágenes encontradas:**")
+            for img in tecnico.get('imagenes', []):
+                st.write(f"- 🖼 {img.get('URL')} | ALT: `{img.get('ALT')}` | Peso: {img.get('Peso (bytes)', 0)} bytes")
+
+            st.markdown("### 📦 Datos estructurados")
+            esquemas = tecnico.get('datos_estructurados', [])
+            if esquemas:
+                for idx, schema in enumerate(esquemas):
+                    grafos = schema.get('@graph') if '@graph' in schema else [schema]
+                    for sub in grafos:
+                        tipo = sub.get('@type', f"Schema #{idx+1}")
+                        if isinstance(tipo, list): tipo = "/".join(tipo)
+                        with st.expander(f"🔖 {tipo}"):
+                            st.json(sub)
             else:
-                st.markdown(f"**Código de estado:** {tecnico['codigo']}")
-                st.markdown(f"**Robots:** {tecnico['robots'] or 'N/A'}")
-                st.markdown(f"**Canonical:** {', '.join(tecnico['canonicals']) if tecnico['canonicals'] else 'N/A'}")
-
-                st.markdown("**Títulos:**")
-                for t in tecnico['titles']:
-                    st.write(f"- {t}")
-
-                st.markdown("**Meta Descriptions:**")
-                for d in tecnico['meta_descriptions']:
-                    st.write(f"- {d}")
-
-                st.markdown("**Meta Keywords:**")
-                for k in tecnico['meta_keywords']:
-                    st.write(f"- {k}")
-
-                st.markdown("**Encabezados H1:**")
-                for h in tecnico['h1s']:
-                    st.write(f"- {h}")
-
-                st.markdown("**Imágenes encontradas:**")
-                for img in tecnico['imagenes']:
-                    st.write(f"- 🖼 {img['URL']} | ALT: `{img['ALT']}` | Peso: {img['Peso (bytes)']} bytes")
-
-                st.markdown("### 📦 Datos estructurados")
-                if tecnico['datos_estructurados']:
-                    for idx, schema in enumerate(tecnico['datos_estructurados']):
-                        if '@graph' in schema and isinstance(schema['@graph'], list):
-                            for subidx, sub_schema in enumerate(schema['@graph']):
-                                tipo = sub_schema.get('@type', f"Schema #{idx+1}-{subidx+1}")
-                                if isinstance(tipo, list):
-                                    tipo = "/".join(tipo)
-                                with st.expander(f"🔖 {tipo}"):
-                                    st.json(sub_schema)
-                        else:
-                            tipo = schema.get('@type', f"Schema #{idx+1}")
-                            if isinstance(tipo, list):
-                                tipo = "/".join(tipo)
-                            with st.expander(f"🔖 {tipo}"):
-                                st.json(schema)
-                else:
-                    st.info("No se encontraron datos estructurados.")
+                st.info("No se encontraron datos estructurados.")

@@ -1,33 +1,46 @@
-# analisis_contenido.py
+# utils/analisis_contenido.py
 import streamlit as st
-import time
 from analisis_seo import analizar_texto
 from analisis_tecnico import analizar_tecnico
 
 def procesar_analisis_contenido():
-    urls_restantes = list(st.session_state.contenido_variable.keys())
-    if urls_restantes:
-        siguiente = urls_restantes[0]
-        bloques = st.session_state.contenido_variable[siguiente]
+    urls_totales = [
+        u for u in st.session_state.url_listado
+        if u.get("analisis_contenido") in [None, "pendiente", "completado", "omitido"]
+        and u.get("bloques_texto")
+    ]
+    total = len(urls_totales)
+    completadas = 0
 
-        texto = "\n\n".join([b["texto"] for b in bloques]).strip()
-        html = "".join([b["html"] for b in bloques]).strip()
+    st.markdown("## 🧠 Análisis de contenido en curso...")
+    barra = st.progress(0)
+
+    while st.session_state.modo_contenido:
+        url_pendiente = next(
+            (u for u in st.session_state.url_listado if u.get("analisis_contenido") == "pendiente"),
+            None
+        )
+
+        if not url_pendiente:
+            break
+
+        texto = "\n\n".join(url_pendiente.get("bloques_texto", [])).strip()
+        html = "".join(url_pendiente.get("bloques_html", [])).strip()
 
         if texto:
-            resultado = analizar_texto(texto, html)
-            st.session_state.resultados_seo[siguiente] = resultado
-            st.session_state.texto_analizado_por_url[siguiente] = texto
-            st.session_state.html_analizado_por_url[siguiente] = html
-
-            resultado_tecnico = analizar_tecnico(siguiente)
-            st.session_state.resultados_tecnicos[siguiente] = resultado_tecnico
+            url_pendiente["resultado_seo"] = analizar_texto(texto, html)
+            url_pendiente["resultado_tecnico"] = analizar_tecnico(url_pendiente["url"])
+            url_pendiente["analisis_contenido"] = "completado"
         else:
-            st.warning(f"El contenido de `{siguiente}` está vacío o fue totalmente filtrado.")
+            url_pendiente["analisis_contenido"] = "omitido"
+            st.warning(f"⚠ El contenido de `{url_pendiente['url']}` está vacío o fue filtrado.")
 
-        del st.session_state.contenido_variable[siguiente]
-        time.sleep(0.3)
-        st.rerun()
+        completadas = sum(1 for u in st.session_state.url_listado if u.get("analisis_contenido") == "completado")
+        barra.progress(completadas / total if total else 1.0)
 
-def iniciar_analisis_contenido():
-    st.session_state.modo_contenido = True
-    st.session_state.estado = 'pausado'
+        if not st.session_state.modo_contenido:
+            st.warning("⏸ Análisis pausado por el usuario.")
+            break
+
+    if completadas == total:
+        st.success("✅ Análisis de contenido finalizado.")

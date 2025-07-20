@@ -1,4 +1,4 @@
-# indexabilidad.py
+# utils/indexabilidad.py
 import streamlit as st
 import time
 from index_check import limpiar_url, obtener_enlaces_internos, analizar_indexabilidad, clasificar_tipo_pagina
@@ -33,5 +33,10 @@ def expandir_enlaces_si_indexable(url_actual, url_blog):
                 "codigo": None,
                 "canonicals": [],
                 "robots": None,
-                "tipo_pagina": clasificar_tipo_pagina(nueva_url_limpia)
+                "tipo_pagina": clasificar_tipo_pagina(nueva_url_limpia),
+                "analisis_contenido": None,
+                "bloques_html": None,
+                "bloques_texto": None,
+                "resultado_seo": None,
+                "resultado_tecnico": None
             })
