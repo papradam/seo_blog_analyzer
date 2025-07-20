@@ -21,7 +21,7 @@ def mostrar_botones_control(url_blog):
         ]
 
         if len(indexables) >= 3:
-            label = "⏸ Pausar análisis de contenido" if st.session_state.modo_contenido else "🧠 Evaluar contenido de valor"
+            label = "⏸ Pausar análisis de contenido" if st.session_state.modo_contenido else "🔍 Evaluar contenido de valor"
             if st.button(label):
                 if st.session_state.modo_contenido:
                     st.session_state.modo_contenido = False

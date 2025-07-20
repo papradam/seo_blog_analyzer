@@ -11,8 +11,9 @@ from utils.visualizacion import mostrar_resultado_individual, mostrar_detalle_ur
 from utils.informe import mostrar_informe_resultados
 
 # Configuración general
-st.set_page_config(page_title="Análisis de Indexabilidad", layout="wide")
-st.title("🔍 Análisis de Indexabilidad de URLs")
+st.set_page_config(page_title="PABIA", layout="wide")
+st.title("📈 SEO-Analytics Platform – PABIA")
+st.caption("Trabajo de grado del Master de Data Science de Paola Andrea Prada Marín")
 
 # Input principal
 url_blog = st.text_input("📍 URL del blog principal")

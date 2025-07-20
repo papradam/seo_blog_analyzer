@@ -15,7 +15,7 @@ def procesar_analisis_contenido():
     texto_estado = st.empty()
     barra = st.empty()
 
-    texto_estado.markdown("## 🧠 Análisis de contenido en curso...")
+    texto_estado.markdown("## 🔍 Análisis de contenido en curso...")
     progreso = barra.progress(0)
 
     while st.session_state.modo_contenido:

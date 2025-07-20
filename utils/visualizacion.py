@@ -17,7 +17,7 @@ def mostrar_resultado_individual():
         st.session_state["radio_seleccion_url"] = seleccion_actual
 
     with st.sidebar:
-        st.markdown("## 📊 Resultados Disponibles")
+        st.markdown("## 📈 Resultados globales ")
 
         st.button(
             "📊 Resultados del análisis",
@@ -32,7 +32,7 @@ def mostrar_resultado_individual():
         st.markdown("## 🔗 Selecciona una URL")
 
         nueva_seleccion = st.radio(
-            "URLs con análisis semántico",
+            "URLs con análisis de contenido y técnico",
             urls_analizadas,
             index=urls_analizadas.index(st.session_state["radio_seleccion_url"])
             if st.session_state.get("radio_seleccion_url") in urls_analizadas
@@ -56,6 +56,8 @@ def mostrar_detalle_url(url):
     html = datos_url.get('bloques_html', [])
 
     st.markdown(f"## 📊 Detalle SEO para: `{url}`")
+    st.markdown("---")
+    st.markdown("## 🖋 Análisis de Contenido")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -70,7 +72,7 @@ def mostrar_detalle_url(url):
         st.write(f"- {frase} ({count})")
 
     if html:
-        with st.expander("🗾 Contenido analizado (HTML renderizado)"):
+        with st.expander("🗾 Contenido analizado (Contenido único para esta página)"):
             st.markdown("".join(html), unsafe_allow_html=True)
 
     if tecnico:

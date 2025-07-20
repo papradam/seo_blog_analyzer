@@ -46,7 +46,7 @@ def mostrar_informe_resultados():
 
     df = pd.DataFrame(datos)
 
-    st.subheader("🧮 Métricas Promedio")
+    st.subheader("🧮 Promedios")
     col1, col2, col3 = st.columns(3)
     col1.metric("📖 Legibilidad", f"{df['Legibilidad'].mean():.2f}")
     col2.metric("📝 Palabras", f"{df['Palabras'].mean():.0f}")
@@ -96,8 +96,7 @@ def mostrar_informe_resultados():
             canonicals_count["Falta"] += 1
         elif len(canonicals) > 1:
             canonicals_count["Múltiple"] += 1
-        else:
-            canonicals_count["Múltiple"] += 1
+        # Si hay solo una canonical, no se cuenta como múltiple
 
     st.subheader("🔎 Indexabilidad")
     colx1, colx2, colx3 = st.columns(3)
@@ -118,6 +117,8 @@ def mostrar_informe_resultados():
     with colx3:
         st.markdown("#### Canonicals")
         graficar_barra(pd.Series(canonicals_count), "#d4a5a5", "Tipos de Canonicals", "Cantidad de URLs", height=2.5)
+    
+    st.subheader("⚙ Etiquetas")
 
     def procesar_meta(tecnicos):
         resultados = {
@@ -175,19 +176,31 @@ def mostrar_informe_resultados():
         st.markdown("#### Encabezados H1")
         graficar_barra(pd.Series(resultados_meta["h1s"]), "#94d0cc", height=2.5)
 
+    # 🖼 Evaluación de imágenes
+    st.markdown("### 📷 Evaluación de Imágenes")
+
     imagenes_unicas = {}
+    detalle_imagenes = []
+
     for res in tecnicos:
         for img in res.get("imagenes", []):
-            url = img.get("URL")
+            url = img.get("URL", "").strip()
             if url and url not in imagenes_unicas:
-                imagenes_unicas[url] = {
-                    "ALT": img.get("ALT", ""),
-                    "Peso": img.get("Peso (bytes)", 0)
-                }
+                alt = img.get("ALT", "").strip()
+                peso = img.get("Peso (bytes)", 0)
+                imagenes_unicas[url] = {"ALT": alt, "Peso": peso}
+                detalle_imagenes.append({
+                    "URL": url,
+                    "ALT": alt,
+                    "Peso (bytes)": peso,
+                    "Falta ALT": not bool(alt),
+                    "ALT > 100": len(alt) > 100,
+                    "> 100KB": peso > 100_000
+                })
 
     alt_largos = sum(1 for i in imagenes_unicas.values() if len(i["ALT"]) > 100)
-    sin_alt = sum(1 for i in imagenes_unicas.values() if not i["ALT"].strip())
-    peso_alto = sum(1 for i in imagenes_unicas.values() if i["Peso"] > 100000)
+    sin_alt = sum(1 for i in imagenes_unicas.values() if not i["ALT"])
+    peso_alto = sum(1 for i in imagenes_unicas.values() if i["Peso"] > 100_000)
 
     imagenes_eval = {
         "Falta ALT": sin_alt,
@@ -195,11 +208,24 @@ def mostrar_informe_resultados():
         "> 100KB": peso_alto
     }
 
-    st.subheader("🖼️ Imágenes")
-    graficar_barra(pd.Series(imagenes_eval), "#cdb4db", "Evaluación de Imágenes", "Cantidad de Imágenes", height=2.5)
+    fig, ax = plt.subplots(figsize=(6, 2))  # <-- Tamaño más pequeño (ancho=6, alto=2.5)
+    pd.Series(imagenes_eval).plot(kind="bar", ax=ax, color="#cdb4db")
+    ax.set_ylabel("Cantidad de imágenes únicas")
+    ax.set_title("Problemas comunes en imágenes")
+    st.pyplot(fig)
 
-    st.divider()
+    if detalle_imagenes:
+        with st.expander("🔍 Ver detalle de imágenes únicas"):
+            df_img = pd.DataFrame(detalle_imagenes)
+            df_img_visual = df_img[["URL", "ALT", "Peso (bytes)", "Falta ALT", "ALT > 100", "> 100KB"]].copy()
+            df_img_visual.set_index("URL", inplace=True)
+            st.dataframe(df_img_visual, use_container_width=True)
+    else:
+        st.info("No se han identificado imágenes únicas.")
 
+   
+
+   
     # ---------------- DATOS ESTRUCTURADOS ----------------
     st.header("📦 Datos Estructurados")
 
