@@ -11,7 +11,7 @@ def mostrar_panel_progreso():
         if u['estado'] == 'evaluado' and u['indexable'] and u.get('tipo_pagina') == 'contenido'
     ])
 
-    st.markdown("### 📊 Progreso del análisis")
+    st.markdown("### Progreso del análisis")
     st.progress(evaluadas / total if total else 0.0)
 
     col1, col2 = st.columns(2)

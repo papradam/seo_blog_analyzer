@@ -14,7 +14,7 @@ def graficar_barra(serie, color, titulo=None, ylabel=None, height=2.5):
     st.pyplot(fig)
 
 def mostrar_informe_resultados():
-    st.title("📊 Informe General del Análisis SEO")
+    st.title("Informe General del Análisis SEO")
 
     urls_completadas = [u for u in st.session_state.url_listado if u.get("analisis_contenido") == "completado"]
     if not urls_completadas:
@@ -22,7 +22,7 @@ def mostrar_informe_resultados():
         return
 
     # ---------------- SEMÁNTICO ----------------
-    st.header("📚 Análisis Semántico del Contenido")
+    st.header("Análisis Semántico del Contenido")
     datos, palabras_clave_totales, detalle_urls = [], [], []
 
     for u in urls_completadas:
@@ -46,13 +46,13 @@ def mostrar_informe_resultados():
 
     df = pd.DataFrame(datos)
 
-    st.subheader("🧮 Promedios")
+    st.subheader("Promedios")
     col1, col2, col3 = st.columns(3)
-    col1.metric("📖 Legibilidad", f"{df['Legibilidad'].mean():.2f}")
-    col2.metric("📝 Palabras", f"{df['Palabras'].mean():.0f}")
-    col3.metric("📄 Párrafos", f"{df['Párrafos'].mean():.0f}")
+    col1.metric("Legibilidad", f"{df['Legibilidad'].mean():.2f}")
+    col2.metric("Palabras", f"{df['Palabras'].mean():.0f}")
+    col3.metric("Párrafos", f"{df['Párrafos'].mean():.0f}")
 
-    st.subheader("📏 Distribución de Palabras y Párrafos")
+    st.subheader("Distribución de Palabras y Párrafos")
     col4, col5 = st.columns(2)
 
     with col4:
@@ -63,10 +63,10 @@ def mostrar_informe_resultados():
         df["Rango de párrafos"] = pd.cut(df["Párrafos"], bins=[0,3,6,9,12,15,20,30,50,100])
         graficar_barra(df["Rango de párrafos"].value_counts().sort_index(), "#ffb347", "Distribución de Párrafos", "Cantidad de URLs")
 
-    st.subheader("🎓 Nivel Educativo Estimado")
+    st.subheader("Nivel Educativo Estimado")
     st.bar_chart(df["Nivel educativo"].value_counts())
 
-    st.subheader("☁️ Nube de Palabras Clave")
+    st.subheader("Nube de Palabras Clave")
     if palabras_clave_totales:
         wc = WordCloud(width=800, height=300, background_color="white").generate(" ".join(palabras_clave_totales))
         fig_wc, ax_wc = plt.subplots(figsize=(10, 4))
@@ -76,13 +76,13 @@ def mostrar_informe_resultados():
     else:
         st.info("No se han identificado palabras clave.")
 
-    with st.expander("📋 Ver tabla de análisis por URL"):
+    with st.expander("Ver tabla de análisis por URL"):
         st.dataframe(pd.DataFrame(detalle_urls).set_index("URL"), use_container_width=True)
 
     st.divider()
 
     # ---------------- TÉCNICO ----------------
-    st.header("🛠️ Análisis Técnico")
+    st.header("Análisis Técnico")
 
     tecnicos = [u.get("resultado_tecnico", {}) for u in urls_completadas]
     codigos, robots_list = [], []
@@ -98,7 +98,7 @@ def mostrar_informe_resultados():
             canonicals_count["Múltiple"] += 1
         # Si hay solo una canonical, no se cuenta como múltiple
 
-    st.subheader("🔎 Indexabilidad")
+    st.subheader("Indexabilidad")
     colx1, colx2, colx3 = st.columns(3)
 
     with colx1:
@@ -118,7 +118,7 @@ def mostrar_informe_resultados():
         st.markdown("#### Canonicals")
         graficar_barra(pd.Series(canonicals_count), "#d4a5a5", "Tipos de Canonicals", "Cantidad de URLs", height=2.5)
     
-    st.subheader("⚙ Etiquetas")
+    st.subheader("Etiquetas")
 
     def procesar_meta(tecnicos):
         resultados = {
@@ -176,7 +176,7 @@ def mostrar_informe_resultados():
         st.markdown("#### Encabezados H1")
         graficar_barra(pd.Series(resultados_meta["h1s"]), "#94d0cc", height=2.5)
 
-    # 🖼 Evaluación de imágenes
+    # Evaluación de imágenes
     st.markdown("### 📷 Evaluación de Imágenes")
 
     imagenes_unicas = {}
@@ -215,7 +215,7 @@ def mostrar_informe_resultados():
     st.pyplot(fig)
 
     if detalle_imagenes:
-        with st.expander("🔍 Ver detalle de imágenes únicas"):
+        with st.expander("Ver detalle de imágenes únicas"):
             df_img = pd.DataFrame(detalle_imagenes)
             df_img_visual = df_img[["URL", "ALT", "Peso (bytes)", "Falta ALT", "ALT > 100", "> 100KB"]].copy()
             df_img_visual.set_index("URL", inplace=True)
@@ -227,7 +227,7 @@ def mostrar_informe_resultados():
 
    
     # ---------------- DATOS ESTRUCTURADOS ----------------
-    st.header("📦 Datos Estructurados")
+    st.header("Datos Estructurados")
 
     tipo_schema = {}
     detalle_schema = {}
@@ -286,6 +286,6 @@ def mostrar_informe_resultados():
         st.info("No se encontraron datos estructurados.")
 
     st.divider()
-    with st.expander("🗂️ Ver tabla resumen técnica por URL"):
+    with st.expander("Ver tabla resumen técnica por URL"):
         df_resumen = pd.DataFrame(resumen_tecnico)
         st.dataframe(df_resumen, use_container_width=True)

@@ -17,10 +17,10 @@ def mostrar_resultado_individual():
         st.session_state["radio_seleccion_url"] = seleccion_actual
 
     with st.sidebar:
-        st.markdown("## 📈 Resultados globales ")
+        st.markdown("## Resultados globales ")
 
         st.button(
-            "📊 Resultados del análisis",
+            "Resultados del análisis",
             key="btn_resultados_sidebar",
             on_click=lambda: st.session_state.update({
                 "ver_informe": True,
@@ -29,7 +29,7 @@ def mostrar_resultado_individual():
         )
 
         st.markdown("---")
-        st.markdown("## 🔗 Selecciona una URL")
+        st.markdown("## Selecciona una URL")
 
         nueva_seleccion = st.radio(
             "URLs con análisis de contenido y técnico",
@@ -55,29 +55,29 @@ def mostrar_detalle_url(url):
     tecnico = datos_url.get('resultado_tecnico', {})
     html = datos_url.get('bloques_html', [])
 
-    st.markdown(f"## 📊 Detalle SEO para: `{url}`")
+    st.markdown(f"## Detalle SEO para: `{url}`")
     st.markdown("---")
-    st.markdown("## 🖋 Análisis de Contenido")
+    st.markdown("## Análisis de Contenido")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("📖 Legibilidad", f"{res.get('indice_legibilidad', 0):.2f}")
-        st.metric("🎓 Nivel educativo", res.get('nivel_educativo', 'N/A'))
+        st.metric("Legibilidad", f"{res.get('indice_legibilidad', 0):.2f}")
+        st.metric("Nivel educativo", res.get('nivel_educativo', 'N/A'))
     with col2:
-        st.metric("📝 Palabras", res.get('num_palabras', 0))
-        st.metric("📄 Párrafos", res.get('num_parrafos', 0))
+        st.metric("Palabras", res.get('num_palabras', 0))
+        st.metric("Párrafos", res.get('num_parrafos', 0))
 
-    st.markdown("### 🔍 Palabras clave extraídas")
+    st.markdown("### Palabras clave extraídas")
     for frase, count in res.get('palabras_clave', []):
         st.write(f"- {frase} ({count})")
 
     if html:
-        with st.expander("🗾 Contenido analizado (Contenido único para esta página)"):
+        with st.expander("Contenido analizado (Contenido único para esta página)"):
             st.markdown("".join(html), unsafe_allow_html=True)
 
     if tecnico:
         st.markdown("---")
-        st.markdown("## 🛠️ Análisis Técnico")
+        st.markdown("## Análisis Técnico")
         if 'error' in tecnico:
             st.error(f"Error al analizar: {tecnico['error']}")
         else:
@@ -97,9 +97,9 @@ def mostrar_detalle_url(url):
 
             st.markdown("**Imágenes encontradas:**")
             for img in tecnico.get('imagenes', []):
-                st.write(f"- 🖼 {img.get('URL')} | ALT: `{img.get('ALT')}` | Peso: {img.get('Peso (bytes)', 0)} bytes")
+                st.write(f"- {img.get('URL')} | ALT: `{img.get('ALT')}` | Peso: {img.get('Peso (bytes)', 0)} bytes")
 
-            st.markdown("### 📦 Datos estructurados")
+            st.markdown("### Datos estructurados")
             esquemas = tecnico.get('datos_estructurados', [])
             if esquemas:
                 for idx, schema in enumerate(esquemas):
@@ -107,7 +107,7 @@ def mostrar_detalle_url(url):
                     for sub in grafos:
                         tipo = sub.get('@type', f"Schema #{idx+1}")
                         if isinstance(tipo, list): tipo = "/".join(tipo)
-                        with st.expander(f"🔖 {tipo}"):
+                        with st.expander(f"{tipo}"):
                             st.json(sub)
             else:
                 st.info("No se encontraron datos estructurados.")

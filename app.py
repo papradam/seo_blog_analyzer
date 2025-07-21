@@ -12,11 +12,11 @@ from utils.informe import mostrar_informe_resultados
 
 # Configuración general
 st.set_page_config(page_title="PABIA", layout="wide")
-st.title("📈 SEO-Analytics Platform – PABIA")
+st.title("SEO-Analytics Platform – PABIA")
 st.caption("Trabajo de grado del Master de Data Science de Paola Andrea Prada Marín")
 
 # Input principal
-url_blog = st.text_input("📍 URL del blog principal")
+url_blog = st.text_input("URL del blog principal")
 
 def main():
     # Estado inicial
@@ -24,7 +24,7 @@ def main():
 
     # Fase de arranque
     if st.session_state.estado == 'inicio':
-        if st.button("🚀 Iniciar proceso") and url_blog:
+        if st.button("Iniciar proceso") and url_blog:
             st.session_state.estado = 'activo'
             st.session_state.modo_contenido = False
             st.session_state.url_listado = [{
