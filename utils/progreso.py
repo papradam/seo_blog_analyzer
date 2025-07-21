@@ -22,7 +22,7 @@ def mostrar_panel_progreso():
         st.markdown(f"**Total de URLs:** {total}")
         st.markdown(f"**Contenido de valor encontrado:** {contenido_valor}")
 
-    st.markdown("### 📄 URLs encontradas")
+    st.markdown("### URLs encontradas")
     datos = [
         {
             "Índice": i + 1,

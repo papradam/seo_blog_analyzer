@@ -177,7 +177,7 @@ def mostrar_informe_resultados():
         graficar_barra(pd.Series(resultados_meta["h1s"]), "#94d0cc", height=2.5)
 
     # Evaluación de imágenes
-    st.markdown("### 📷 Evaluación de Imágenes")
+    st.markdown("### Evaluación de Imágenes")
 
     imagenes_unicas = {}
     detalle_imagenes = []
@@ -275,7 +275,7 @@ def mostrar_informe_resultados():
     if tipo_schema:
         st.bar_chart(pd.Series(tipo_schema).sort_values(ascending=False))
         for tipo, elementos in detalle_schema.items():
-            with st.expander(f"🔍 {tipo} ({len(elementos)})"):
+            with st.expander(f"{tipo} ({len(elementos)})"):
                 for url, item in elementos:
                     st.markdown(f"**URL:** {url}")
                     for k, v in item.items():
